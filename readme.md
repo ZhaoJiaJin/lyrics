@@ -43,7 +43,7 @@ for example:
 python classify_artist_ml.py svm Tfidf
 ```
 
-ps: you can also customize ngram, open corresponding python file and search ngram_range, default is (1,3) means n is from 1 to 3, you can change it to (1,2) or (1,1)
+PS: you can also customize ngram, open corresponding python file and search ngram_range, default is (1,3) means n is from 1 to 3, you can change it to (1,2) or (1,1)
 
 
 # Results
@@ -52,3 +52,5 @@ you can find accuracy result in the following files:
 
 * ./artists_classify.result : classification results for artists.
 * ./decade_classify.result : classification results for decades.
+
+PS: I didn't really find a way to measure accuracy for LDA modelling, so I came up with my own way, which I am not sure it is reasonable. As LDA accuracy is calculated differently, and it is not comparable with other accuracies, so I didn't put LDA accuracy in the results file.
