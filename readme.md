@@ -53,4 +53,4 @@ you can find accuracy result in the following files:
 * ./artists_classify.result : classification results for artists.
 * ./decade_classify.result : classification results for decades.
 
-PS: I didn't really find a way to measure accuracy for LDA modelling, so I came up with my own way, which I am not sure it is reasonable. As LDA accuracy is calculated differently, and it is not comparable with other accuracies, so I didn't put LDA accuracy in the results file.
+PS: I didn't really find a way to measure accuracy for LDA modelling, so I came up with my own way, which I am not sure is reasonable. As LDA accuracy is calculated differently, and it is not comparable with other accuracies, so I didn't put LDA accuracy in the results file.
