@@ -3,7 +3,7 @@
 # pre processing steps
 # 0. remove non-english songs
 # 0.1 detect and remove all duplicate records.!!!
-# 1. calcuate the number of artists and the number of songs(on) of each artists, same with years
+# 1. calcuate the number of years and the number of songs(on) of each year, same with years
 # 2. replace contractions words like "won't" => "will not",
 # 3. remove brackets and everything in them
 # 4. remove special characters
@@ -66,7 +66,7 @@ def chooserandom(titles, lyrics, source):
     lyricsres = []
     records = {}
     slen = len(source)
-    while len(res) < 250:
+    while len(res) < 700:
         if len(source) <= 0:
             return res,lyricsres,False
         got = random.choice(source)
@@ -148,7 +148,7 @@ englishlyrics_file = "./data/english_lyrics.csv"
 #res.to_csv(englishlyrics_file,columns=['song','year','artist','genre','lyrics'],index=False)
 
 
-step01output = "./data/english_no_dup_lyrics.csv"
+step01output = "./data/english_no_dup_year_lyrics.csv"
 #0.1 remve duplicate records
 #res = pd.read_csv(englishlyrics_file)
 #
@@ -178,20 +178,20 @@ step01output = "./data/english_no_dup_lyrics.csv"
 #    else:
 #        if i not in droprow:
 #            droprow.append(i)
-#        if records[tl] not in droprow:
-#            droprow.append(records[tl])
 #
 #res = res.drop(droprow)
 #print(res)
 #
 #res.to_csv(step01output,columns=['song','year','artist','genre','lyrics'],index=False)
 #
-#
 
 
+def decades(y):
+    yi = int(y)
+    return y - (y%10)
 
-step1outfile = "./data/artistlyrics.csv"
-# 1. each artist should have 250 songs.
+
+step1outfile = "./data/yearlyrics.csv"
 res = pd.read_csv(step01output)
 
 #res = valid("./songdata.csv")
@@ -204,13 +204,14 @@ mapres={}
 needrow = []
 
 for i in range(0, row):
-    name = targetcol[i]
+    name = decades(targetcol[i])
     if name not in mapres:
         mapres[name] = []
     mapres[name].append(i)
 
 for k in mapres:
-    if len(mapres[k]) >250:
+    print(len(mapres[k]),k)
+    if len(mapres[k]) >700:
         print(len(mapres[k]),k)
         #print("{0}|{1}".format(k,len(mapres[k])))
         chooseres,lycchoose,enough = chooserandom(titles, lyrics, mapres[k])
