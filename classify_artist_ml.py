@@ -2,6 +2,9 @@
 
 import pandas as pd
 import gensim
+import random
+from sklearn.metrics import classification_report
+from sklearn.linear_model import SGDClassifier
 import sys
 from nltk.corpus import stopwords
 import string
@@ -12,9 +15,14 @@ from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from nltk.stem.snowball import EnglishStemmer
+from xgboost import XGBClassifier
+
+method=sys.argv[1]
+vectrizer = sys.argv[2]
 inputf = "./data/english_lyrics.csv"
 songs = pd.read_csv(inputf)
 stemmer = EnglishStemmer()
+randomgene = random.Random(100)
 def decades(y):
     return y.lower()
 
@@ -31,9 +39,17 @@ songs["artist"] = songs.apply(lambda x:decades(x['artist']),axis=1)
 
 
 (row,col) = songs.shape
+def randompick(src,l):
+    #return src[:l]
+    res = []
+    while len(res) < l:
+        got = randomgene.choice(src)
+        src.remove(got)
+        res.append(got)
 
-def pick(src):
-    return src[:1729]
+    return res
+
+
 
 
 
@@ -46,11 +62,13 @@ for i in range(0,row):
     atmap[y].append(i)
 
 need = []
+targetcount = 0
 for y in atmap:
-    if len(atmap[y]) > 400:
-        need.extend(atmap[y][0:400])
+    if len(atmap[y]) > 570:
+        targetcount += 1
+        need.extend(randompick(atmap[y],570))
 
-print(len(need))
+print("number of artists:",targetcount)
 
 songs = songs[songs.index.isin(need)]
 songs = songs.reset_index(drop=True)
@@ -135,11 +153,55 @@ def preprocessText(text, remove_stops=True):
 
 
 songs['lyrics'] = songs.apply(lambda x: preprocessText(x['lyrics']), axis=1)
-print(songs)
 
 train, test = train_test_split(songs, test_size=0.2, stratify=songs.artist, random_state=1)
 
-text_mnb = Pipeline([('vect', CountVectorizer()),
-                     ('mnb', MultinomialNB(fit_prior=False))])
-text_mnb = text_mnb.fit(train.lyrics, train.artist)
-print(cross_val_score(estimator=text_mnb, X=train.lyrics, y=train.artist, cv=7).mean())
+vectorizer = None
+if vectrizer == "count":
+    vectorizer = CountVectorizer()
+else:
+    vectorizer = TfidfVectorizer(ngram_range=(1,3))
+
+
+
+if method == "bayes":
+    # Naive Bayes test results
+    text_mnb = Pipeline([('vect', vectorizer),
+                         ('mnb', MultinomialNB(fit_prior=False))])
+    text_mnb = text_mnb.fit(train.lyrics, train.artist)
+    cross_val_score(estimator=text_mnb, X=train.lyrics, y=train.artist, cv=7).mean()
+
+    print("accuracy:",text_mnb.score(y=test.artist, X=test.lyrics))
+    preds = text_mnb.predict(test.lyrics)
+    print(classification_report(y_pred=preds, y_true=test.artist))
+    #print(pd.crosstab(preds, test.artist))
+elif method == "svm":
+    text_mnb = Pipeline([('vect', vectorizer),
+    #text_mnb = Pipeline([('vect', CountVectorizer()),
+                         ('svm', SGDClassifier(loss='hinge', penalty='l2', alpha=1e-4,
+                                                random_state=123))])
+    text_mnb = text_mnb.fit(train.lyrics, train.artist)
+    cross_val_score(estimator=text_mnb, X=train.lyrics, y=train.artist, cv=7).mean()
+
+
+    print("accuracy:",text_mnb.score(y=test.artist, X=test.lyrics))
+    preds = text_mnb.predict(test.lyrics)
+    print(classification_report(y_pred=preds, y_true=test.artist))
+    #print(pd.crosstab(preds, test.artist))
+
+elif method == "xgb":
+    # XGB model
+    vect = vectorizer
+    vect.fit_transform(train.lyrics)
+    vect_test = vect.transform(pd.Series(test.lyrics))
+    vect_train = vect.transform(pd.Series(train.lyrics))
+
+    text_mnb = XGBClassifier(learning_rate=0.25, subsample=0.8, gamma=1, random_state=123, max_depth=6, max_delta_step=1).fit(vect_train, train.artist)
+
+    print("accuracy:",text_mnb.score(y=test.artist, X=vect_test))
+    preds = text_mnb.predict(vect_test)
+    print(classification_report(y_pred=preds, y_true=test.artist))
+    #print(pd.crosstab(preds, test.artist))
+else:
+    print("please provide method: bayes, svm, or xgb")
+

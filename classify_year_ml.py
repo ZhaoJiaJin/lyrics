@@ -2,6 +2,7 @@
 
 import pandas as pd
 import gensim
+import random
 from sklearn.metrics import classification_report
 from sklearn.linear_model import SGDClassifier
 import sys
@@ -14,6 +15,10 @@ from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from nltk.stem.snowball import EnglishStemmer
+from xgboost import XGBClassifier
+
+method=sys.argv[1]
+vectrizer = sys.argv[2]
 inputf = "./data/english_lyrics.csv"
 songs = pd.read_csv(inputf)
 stemmer = EnglishStemmer()
@@ -28,15 +33,21 @@ years = songs['year']
 songs["year"] = songs.apply(lambda x:decades(x['year']),axis=1)
 songs = songs[~(songs.year < 1970)]
 songs = songs.reset_index(drop=True)
-print(songs)
 
 
 
 
 (row,col) = songs.shape
 
-def pick(src):
-    return src[:1729]
+def randompick(src,l):
+    #return src[:l]
+    res = []
+    while len(res) < l:
+        got = random.choice(src)
+        src.remove(got)
+        res.append(got)
+
+    return res
 
 
 
@@ -49,11 +60,13 @@ for i in range(0,row):
     yearmap[y].append(i)
 
 need = []
+targetcount = 0
 for y in yearmap:
-    print(y, len(yearmap[y]))
-    need.extend(yearmap[y][0:800])
+    if len(yearmap[y]) >= 800:
+        targetcount += 1
+        need.extend(randompick(yearmap[y],800))
 
-print(len(need))
+print("number of decades:",targetcount)
 
 songs = songs[songs.index.isin(need)]
 songs = songs.reset_index(drop=True)
@@ -138,25 +151,54 @@ def preprocessText(text, remove_stops=True):
 
 
 songs['lyrics'] = songs.apply(lambda x: preprocessText(x['lyrics']), axis=1)
-print(songs)
 
 train, test = train_test_split(songs, test_size=0.2, stratify=songs.year, random_state=1)
 
 
-## Naive Bayes test results
-#text_mnb = Pipeline([('vect', CountVectorizer()),
-#                     ('mnb', MultinomialNB(fit_prior=False))])
-#text_mnb = text_mnb.fit(train.lyrics, train.year)
-#print(cross_val_score(estimator=text_mnb, X=train.lyrics, y=train.year, cv=7).mean())
-#
+vectorizer = None
+if vectrizer == "count":
+    vectorizer = CountVectorizer()
+else:
+    vectorizer = TfidfVectorizer(ngram_range=(1,3))
 
-text_mnb = Pipeline([('vect', TfidfVectorizer(ngram_range=(1,2))),
-                     ('svm', SGDClassifier(loss='hinge', penalty='l2', alpha=1e-4,
-                                            random_state=123))])
-text_mnb = text_mnb.fit(train.lyrics, train.year)
-cross_val_score(estimator=text_mnb, X=train.lyrics, y=train.year, cv=7).mean()
+if method == "bayes":
+    # Naive Bayes test results
+    text_mnb = Pipeline([('vect', vectorizer),
+                         ('mnb', MultinomialNB(fit_prior=False))])
+    text_mnb = text_mnb.fit(train.lyrics, train.year)
+    cross_val_score(estimator=text_mnb, X=train.lyrics, y=train.year, cv=7).mean()
 
-print(text_mnb.score(y=test.year, X=test.lyrics))
-preds = text_mnb.predict(test.lyrics)
-print(classification_report(y_pred=preds, y_true=test.year))
-print(pd.crosstab(preds, test.year))
+    print("accuracy:",text_mnb.score(y=test.year, X=test.lyrics))
+    preds = text_mnb.predict(test.lyrics)
+    print(classification_report(y_pred=preds, y_true=test.year))
+    #print(pd.crosstab(preds, test.year))
+
+elif method == "svm":
+    # SVM
+    text_mnb = Pipeline([('vect', vectorizer),
+                         ('svm', SGDClassifier(loss='hinge', penalty='l2', alpha=1e-4,
+                                                random_state=123))])
+    text_mnb = text_mnb.fit(train.lyrics, train.year)
+    cross_val_score(estimator=text_mnb, X=train.lyrics, y=train.year, cv=7).mean()
+
+    print("accuracy:",text_mnb.score(y=test.year, X=test.lyrics))
+    preds = text_mnb.predict(test.lyrics)
+    print(classification_report(y_pred=preds, y_true=test.year))
+    #print(pd.crosstab(preds, test.year))
+
+elif method == "xgb":
+    # XGB model
+    vect = vectorizer
+    #vect = CountVectorizer()
+    vect.fit_transform(train.lyrics)
+    vect_test = vect.transform(pd.Series(test.lyrics))
+    vect_train = vect.transform(pd.Series(train.lyrics))
+
+    text_mnb = XGBClassifier(learning_rate=0.25, subsample=0.8, gamma=1, random_state=123, max_depth=6, max_delta_step=1).fit(vect_train, train.year)
+
+    print("accuracy:",text_mnb.score(y=test.year, X=vect_test))
+    preds = text_mnb.predict(vect_test)
+    print(classification_report(y_pred=preds, y_true=test.year))
+    #print(pd.crosstab(preds, test.year))
+else:
+    print("please provide method: bayes, svm, or xgb")
