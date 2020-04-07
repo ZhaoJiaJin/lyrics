@@ -57,6 +57,12 @@ corpus_tfidf = tfidf[bow_corpus]
 lda_model= gensim.models.LdaMulticore(corpus_tfidf, num_topics=9, id2word=dictionary, passes=2, workers=4)
 #for idx, topic in lda_model_tfidf.print_topics(-1):
 #    print('Topic: {} Word: {}'.format(idx, topic))
+
+# I don't know how to calculate accuracy for LDA model, so I came up with this method:
+# 1. Use the model to classify all the documents(lyrics)
+# 2. If most the documents(lyrics) under the same category(artist) are classified as the same topic,  I will assume this model has good performance
+# PS: And the performance is not very well
+
 predictmap = {}
 for artist in artistmap:
     predictmap[artist] = []
