@@ -16,7 +16,7 @@ dataset address : https://drive.google.com/drive/folders/1JE9OzwobKFnik8ybAhmCwB
 ### artist prediction
 
 * ./pre_process_artist.py: data preprocess
-* ./classify_artist_lda.py: classify decade
+* ./classify_artist_lda.py: classify artist
 
 
 ## other models
